@@ -1,0 +1,22 @@
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const { connectDB } = require("./config/db");
+const tutorRoutes = require("./routes/tutors");
+const bookingRoutes = require("./routes/bookings");
+const { notFound, errorHandler } = require("./middleware/errors");
+
+const app = express();
+app.disable("x-powered-by");
+const allowed = String(process.env.CLIENT_URL || "http://localhost:3001").split(",").map(x=>x.trim()).filter(Boolean);
+app.use(cors({ origin(origin,cb){ if(!origin || allowed.includes(origin)) return cb(null,true); const error=new Error("CORS origin not allowed"); error.status=403; cb(error); }, credentials:true }));
+app.use(express.json({limit:"1mb"}));
+let ready;
+app.use(async(req,res,next)=>{ try{ if(!ready) ready=connectDB(); await ready; next(); }catch(error){ next(error); } });
+app.get("/",(req,res)=>res.json({service:"MediQueue API",status:"ok"}));
+app.get("/api/health",(req,res)=>res.json({status:"ok",time:new Date().toISOString()}));
+app.use("/api/tutors",tutorRoutes);
+app.use("/api/bookings",bookingRoutes);
+app.use(notFound);
+app.use(errorHandler);
+module.exports = app;
