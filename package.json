@@ -1,0 +1,22 @@
+{
+  "name": "mediqueue-server",
+  "version": "1.0.0",
+  "description": "Express API for the MediQueue tutor booking system",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/app.js && node --check src/routes/tutors.js && node --check src/routes/bookings.js",
+    "test": "node --test src/utils/query.test.js",
+    "seed": "node src/scripts/seed.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jose": "^6.2.3",
+    "mongodb": "^7.3.0"
+  },
+  "devDependencies": { "nodemon": "^3.1.10" }
+}
