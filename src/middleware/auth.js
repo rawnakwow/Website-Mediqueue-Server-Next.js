@@ -1,36 +1,107 @@
 let jwks;
 let joseModule;
 
-async function getJose(){
-  if(!joseModule) joseModule = import("jose");
+function removeTrailingSlash(value) {
+  return String(value || "").trim().replace(/\/+$/, "");
+}
+
+const firstClientURL = String(
+  process.env.CLIENT_URL || "http://localhost:3000"
+)
+  .split(",")[0]
+  .trim();
+
+const authIssuer = removeTrailingSlash(
+  process.env.BETTER_AUTH_ISSUER || firstClientURL
+);
+
+const authAudience = removeTrailingSlash(
+  process.env.BETTER_AUTH_AUDIENCE || authIssuer
+);
+
+const jwksURL =
+  process.env.BETTER_AUTH_JWKS_URL ||
+  `${authIssuer}/api/auth/jwks`;
+
+async function getJose() {
+  if (!joseModule) {
+    joseModule = import("jose");
+  }
+
   return joseModule;
 }
 
-async function getJwks(){
-  const authOrigin = String(process.env.CLIENT_URL || "http://localhost:3001").split(",")[0].trim();
-  const url = process.env.BETTER_AUTH_JWKS_URL || `${authOrigin}/api/auth/jwks`;
-  const { createRemoteJWKSet } = await getJose();
-  if(!jwks) jwks = createRemoteJWKSet(new URL(url));
+async function getJwks() {
+  if (!jwks) {
+    const { createRemoteJWKSet } = await getJose();
+
+    jwks = createRemoteJWKSet(
+      new URL(jwksURL)
+    );
+  }
+
   return jwks;
 }
 
-async function verifyToken(req,res,next){
-  const header = req.headers.authorization || "";
-  if(!header.startsWith("Bearer ")) return res.status(401).json({ message:"Authentication required" });
-  try{
+async function verifyToken(request, response, next) {
+  const authorization =
+    request.headers.authorization || "";
+
+  if (!authorization.startsWith("Bearer ")) {
+    return response.status(401).json({
+      message: "Authentication required",
+    });
+  }
+
+  const token = authorization.slice(7).trim();
+
+  if (!token) {
+    return response.status(401).json({
+      message: "Authentication token is missing",
+    });
+  }
+
+  try {
     const { jwtVerify } = await getJose();
-    const authOrigin = process.env.BETTER_AUTH_ISSUER || String(process.env.CLIENT_URL || "http://localhost:3001").split(",")[0].trim();
-    const audience = process.env.BETTER_AUTH_AUDIENCE || authOrigin;
-    const { payload } = await jwtVerify(header.slice(7), await getJwks(), { issuer: authOrigin, audience });
-    if(!payload.email) return res.status(401).json({ message:"Authenticated email is missing" });
-    req.user = {
+
+    const { payload } = await jwtVerify(
+      token,
+      await getJwks(),
+      {
+        issuer: authIssuer,
+        audience: authAudience,
+      }
+    );
+
+    if (!payload.email) {
+      return response.status(401).json({
+        message: "Authenticated email is missing",
+      });
+    }
+
+    request.user = {
       id: String(payload.id || payload.sub || ""),
-      email: String(payload.email).trim().toLowerCase(),
-      name: String(payload.name || "Student").trim(),
+      email: String(payload.email)
+        .trim()
+        .toLowerCase(),
+      name: String(
+        payload.name || "Student"
+      ).trim(),
     };
+
     next();
-  }catch{
-    return res.status(401).json({ message:"Invalid or expired access token" });
+  } catch (error) {
+    console.error(
+      "JWT verification failed:",
+      error.code || error.message
+    );
+
+    return response.status(401).json({
+      message: "Invalid or expired access token",
+    });
   }
 }
-module.exports = { verifyToken };
+
+module.exports = {
+  verifyToken,
+};

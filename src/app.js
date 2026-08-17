@@ -8,7 +8,7 @@ const { notFound, errorHandler } = require("./middleware/errors");
 
 const app = express();
 app.disable("x-powered-by");
-const allowed = String(process.env.CLIENT_URL || "http://localhost:3001").split(",").map(x=>x.trim()).filter(Boolean);
+const allowed = String(process.env.CLIENT_URL || "http://localhost:3000").split(",").map(x=>x.trim()).filter(Boolean);
 app.use(cors({ origin(origin,cb){ if(!origin || allowed.includes(origin)) return cb(null,true); const error=new Error("CORS origin not allowed"); error.status=403; cb(error); }, credentials:true }));
 app.use(express.json({limit:"1mb"}));
 let ready;
